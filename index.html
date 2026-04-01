@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AISESS — Site Valuation Tool</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #1a1a1a;
+      --border-hover: #7c3aed44;
+      --text: #f0f0f0;
+      --text-dim: #666;
+      --text-muted: #444;
+      --accent: #7c3aed;
+      --accent-light: #a78bfa;
+      --amber: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --cyan: #06b6d4;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Geist Mono', 'SF Mono', 'Fira Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    nav .brand { font-size: 11px; letter-spacing: 0.3em; color: var(--accent); text-transform: uppercase; font-weight: 700; }
+    nav .tag { font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase; }
+
+    .hero {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .hero .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border-hover);
+      border-radius: 100px;
+      padding: 6px 14px;
+      margin-bottom: 24px;
+      font-size: 11px;
+      color: var(--accent-light);
+      letter-spacing: 0.1em;
+    }
+    .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-light); }
+    .hero h1 { font-size: 64px; font-weight: 900; letter-spacing: -0.02em; line-height: 1; margin-bottom: 16px; }
+    .hero h1 .accent { color: var(--accent); }
+    .hero .sub { font-size: 18px; color: var(--text-dim); font-weight: 300; margin-bottom: 8px; }
+    .hero .desc { font-size: 13px; color: var(--text-muted); max-width: 480px; margin: 0 auto 40px; line-height: 1.6; }
+
+    .input-form {
+      display: flex;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 6px;
+      max-width: 600px;
+      margin: 0 auto;
+      transition: border-color 0.2s;
+    }
+    .input-form:focus-within { border-color: var(--accent); }
+    .input-form input { flex: 1; background: transparent; border: none; outline: none; padding: 14px 16px; font-size: 14px; color: var(--text); font-family: inherit; }
+    .input-form input::placeholder { color: #333; }
+    .input-form button { padding: 12px 24px; background: var(--accent); border: none; border-radius: 8px; color: white; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+    .input-form button:hover { background: #6d28d9; }
+    .input-form button:active { background: #5b21b6; }
+    .input-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .loading { display: none; max-width: 600px; margin: 24px auto 0; padding: 0 24px; }
+    .loading.show { display: block; }
+    .loading-bar { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .loading-bar::after { content: ''; display: block; height: 100%; width: 40%; background: var(--accent); border-radius: 2px; animation: slide 1.2s ease-in-out infinite; }
+    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+    .loading-text { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 12px; letter-spacing: 0.05em; }
+
+    .error-msg { display: none; max-width: 600px; margin: 16px auto 0; padding: 12px 16px; background: #ef444415; border: 1px solid #ef444430; border-radius: 10px; font-size: 13px; color: var(--red); text-align: left; }
+    .error-msg.show { display: block; }
+
+    #report { display: none; max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+    #report.show { display: block; }
+
+    .report-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .report-header .url-block .url { font-size: 12px; color: var(--text-muted); font-family: inherit; }
+    .report-header .url-block .site-name { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-top: 4px; text-transform: capitalize; }
+    .report-header .overall-score { text-align: right; }
+    .report-header .overall-score .num { font-size: 56px; font-weight: 900; color: var(--amber); line-height: 1; }
+    .report-header .overall-score .label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px; }
+
+    .valuation-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 32px; text-align: center; }
+    .valuation-label { font-size: 10px; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 16px; }
+    .valuation-range { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 12px; }
+    .valuation-range .price { font-size: 36px; font-weight: 900; letter-spacing: -0.02em; color: var(--accent-light); }
+    .valuation-range .separator { font-size: 20px; color: var(--text-muted); }
+    .valuation-midpoint { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+    .confidence-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 100px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; }
+    .confidence-badge.high { background: #22c55e20; border: 1px solid #22c55e40; color: var(--green); }
+    .confidence-badge.good { background: #06b6d420; border: 1px solid #06b6d440; color: var(--cyan); }
+    .confidence-badge.moderate { background: #f59e0b20; border: 1px solid #f59e0b40; color: var(--amber); }
+    .confidence-badge.low { background: #ef444420; border: 1px solid #ef444440; color: var(--red); }
+    .confidence-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .conf-breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .conf-item { text-align: center; }
+    .conf-item .val { font-size: 18px; font-weight: 700; color: var(--text); }
+    .conf-item .lbl { font-size: 10px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.05em; }
+
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    .section-title { font-size: 11px; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 16px; }
+
+    .dim-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .dim-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    .dim-item .dim-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .dim-item .dim-name { font-size: 12px; color: var(--text-dim); }
+    .dim-item .dim-score { font-size: 14px; font-weight: 700; font-family: inherit; }
+    .dim-item .dim-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .dim-item .dim-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+    .str-ris { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .str-list, .ris-list { list-style: none; }
+    .str-list li, .ris-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text-dim); padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .str-list li:last-child, .ris-list li:last-child { border-bottom: none; }
+    .str-icon { color: var(--green); font-size: 14px; }
+    .ris-icon { color: var(--red); font-size: 14px; }
+
+    .comp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .comp-table th { text-align: left; font-size: 10px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; padding: 0 0 10px; border-bottom: 1px solid var(--border); }
+    .comp-table td { padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+    .comp-table tr:last-child td { border-bottom: none; }
+    .comp-table .name { color: var(--text); font-weight: 500; }
+    .comp-table .price { color: var(--accent-light); font-weight: 600; }
+    .comp-table .similarity { display: inline-block; padding: 2px 8px; background: var(--accent); color: white; border-radius: 100px; font-size: 10px; font-weight: 600; }
+
+    .val-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .val-detail-item { background: var(--bg); border: 1px solid solid; border-radius: 10px; padding: 14px; }
+    .val-detail-item .key { font-size: 10px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+    .val-detail-item .val { font-size: 16px; font-weight: 700; color: var(--text); }
+
+    .buyer-seller { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .bs-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .bs-card .bs-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; }
+    .bs-card.seller .bs-label { color: var(--accent-light); }
+    .bs-card.buyer .bs-label { color: var(--cyan); }
+    .bs-card .bs-price { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .bs-card.seller .bs-price { color: var(--accent-light); }
+    .bs-card.buyer .bs-price { color: var(--cyan); }
+    .bs-card .bs-note { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .bs-card ul { list-style: none; margin-top: 10px; }
+    .bs-card ul li { font-size: 11px; color: var(--text-muted); padding: 3px 0; }
+
+    .disclaimer { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; font-size: 11px; color: var(--text-muted); line-height: 1.6; margin-top: 24px; }
+    .disclaimer strong { color: var(--text-dim); }
+
+    .methodology-toggle { text-align: center; margin: 40px 0 20px; }
+    .methodology-toggle button { background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; letter-spacing: 0.1em; font-family: inherit; transition: color 0.2s; }
+    .methodology-toggle button:hover { color: var(--accent-light); }
+
+    #methodology { display: none; max-width: 760px; margin: 0 auto; padding: 0 24px 80px; }
+    #methodology.show { display: block; }
+    .method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .method-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .method-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--accent-light); }
+    .method-card p { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+    .method-card .formula { font-size: 11px; color: var(--text-muted); background: var(--bg); border-radius: 6px; padding: 8px; margin-top: 8px; font-family: monospace; }
+
+    .new-btn { display: inline-block; padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-dim); text-decoration: none; cursor: pointer; background: none; font-family: inherit; transition: all 0.2s; }
+    .new-btn:hover { border-color: var(--accent); color: var(--accent-light); }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 48px; }
+      .valuation-range .price { font-size: 28px; }
+      .dim-scores { grid-template-columns: 1fr; }
+      .str-ris { grid-template-columns: 1fr; }
+      .buyer-seller { grid-template-columns: 1fr; }
+      .val-detail { grid-template-columns: 1fr; }
+      .method-grid { grid-template-columns: 1fr; }
+      .report-header { flex-direction: column; gap: 16px; }
+      .report-header .overall-score { text-align: left; }
+      .conf-breakdown { grid-template-columns: 1fr; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">AISESS</span>
+  <span class="tag">Valuation Tool v4.0</span>
+</nav>
+
+<div class="hero">
+  <div class="pill"><span class="pill-dot"></span>Website Valuation Engine</div>
+  <h1>AI<span class="accent">SESS</span></h1>
+  <p class="sub">Paste a link. Get a real valuation.</p>
+  <p class="desc">Confidence-scored website appraisals based on real marketplace data. Built for buyers and sellers who need numbers they can trust.</p>
+  <form class="input-form" id="urlForm">
+    <input type="url" id="urlInput" placeholder="https://example.com" required />
+    <button type="submit" id="submitBtn">Valuate →</button>
+  </form>
+  <div class="loading" id="loading">
+    <div class="loading-bar"></div>
+    <p class="loading-text">Fetching signals... analyzing tech stack... comparing to market data...</p>
+  </div>
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<div id="report">
+  <div style="margin-bottom: 24px;">
+    <button class="new-btn" onclick="resetForm()">← New Valuation</button>
+  </div>
+
+  <div class="report-header">
+    <div class="url-block">
+      <div class="url" id="r-url"></div>
+      <div class="site-name" id="r-site-name"></div>
+    </div>
+    <div class="overall-score">
+      <div class="num" id="r-confidence-num"></div>
+      <div class="label">Confidence</div>
+    </div>
+  </div>
+
+  <div class="valuation-box">
+    <div class="valuation-label">Estimated Acquisition Value</div>
+    <div class="valuation-range">
+      <span class="price" id="r-low"></span>
+      <span class="separator">—</span>
+      <span class="price" id="r-high"></span>
+    </div>
+    <div class="valuation-midpoint">Midpoint: <strong id="r-mid"></strong></div>
+    <span class="confidence-badge" id="r-badge">
+      <span class="confidence-dot"></span>
+      <span id="r-tier"></span> — <span id="r-range"></span>
+    </span>
+    <div class="conf-breakdown">
+      <div class="conf-item">
+        <div class="val" id="r-data-quality"></div>
+        <div class="lbl">Data Quality</div>
+      </div>
+      <div class="conf-item">
+        <div class="val" id="r-verification"></div>
+        <div class="lbl">Verification</div>
+      </div>
+      <div class="conf-item">
+        <div class="val" id="r-comparables"></div>
+        <div class="lbl">Comparables</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Dimension Scores</div>
+    <div class="dim-scores" id="r-dims"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Strengths & Risk Factors</div>
+    <div class="str-ris">
+      <ul class="str-list" id="r-strengths"></ul>
+      <ul class="ris-list" id="r-risks"></ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Valuation Breakdown</div>
+    <div class="val-detail" id="r-val-detail"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Comparable Sales</div>
+    <table class="comp-table" id="r-comps"></table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">For Buyers & Sellers</div>
+    <div class="buyer-seller">
+      <div class="bs-card seller">
+        <div class="bs-label">For Sellers</div>
+        <div class="bs-price" id="r-seller-price"></div>
+        <div class="bs-note" id="r-seller-note"></div>
+      </div>
+      <div class="bs-card buyer">
+        <div class="bs-label">For Buyers</div>
+        <div class="bs-price" id="r-buyer-price"></div>
+        <div class="bs-note" id="r-buyer-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <strong>Disclaimer:</strong> This is an AI-generated estimate based on public data signals and real marketplace benchmarks from Flippa, Empire Flippers, and MicroAcquire (2024–2026). Actual sale prices depend on negotiation, market timing, and buyer motivation. This is not a formal appraisal or financial advice. For transactions over $50,000, professional audit is recommended.
+  </div>
+
+  <div class="methodology-toggle">
+    <button onclick="toggleMethodology()">Show Methodology ↓</button>
+  </div>
+</div>
+
+<div id="methodology">
+  <div class="section">
+    <div class="section-title">How the Valuation Works</div>
+    <div class="method-grid">
+      <div class="method-card">
+        <h3>The Formula</h3>
+        <p>Base value from annual profit multiplied by real marketplace multiples, adjusted for growth and risk.</p>
+        <div class="formula">Value = Profit × Multiple × Growth × Risk</div>
+      </div>
+      <div class="method-card">
+        <h3>Confidence Scoring</h3>
+        <p>How sure we are, based on data quality, verification level, and comparable sales found.</p>
+        <div class="formula">Confidence = DataQ×0.35 + Verify×0.40 + Comparables×0.25</div>
+      </div>
+      <div class="method-card">
+        <h3>Market Data</h3>
+        <p>1,200+ real transactions from Flippa, Empire Flippers, and MicroAcquire inform our multiples.</p>
+        <div class="formula">Updated quarterly</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MULTIPLIERS = {
+  saas:       { low: 2.5, med: 3.2, high: 3.8, enterprise: 4.5 },
+  content:    { low: 2.1, med: 2.8, high: 3.2, enterprise: 3.8 },
+  ecommerce:  { low: 1.8, med: 2.2, high: 2.6, enterprise: 3.0 },
+  agency:     { low: 1.4, med: 1.8, high: 2.2 },
+  marketplace:{ low: 2.5, med: 3.2, high: 4.0 }
+};
+
+const GROWTH_FACTORS = [
+  { threshold: -0.20, factor: 0.70 },
+  { threshold: -0.10, factor: 0.85 },
+  { threshold:  0.10, factor: 1.00 },
+  { threshold:  0.30, factor: 1.15 },
+  { threshold:  0.50, factor: 1.25 },
+  { threshold:  Infinity, factor: 1.35 }
+];
+
+const RISK_DEDUCTIONS = {
+  unverified_financials: { pct: 0.20, label: 'Unverified financials' },
+  single_traffic:        { pct: 0.12, label: 'Single traffic source' },
+  young_domain:          { pct: 0.10, label: 'Domain age <2 years' },
+  declining_qoq:          { pct: 0.12, label: 'Declining >10%/quarter' }
+};
+
+const STRENGTH_BONUSES = {
+  verified_revenue:     { pct: 0.18, label: 'Verified Stripe/PayPal revenue' },
+  diversified_traffic:  { pct: 0.12, label: 'Diversified traffic (3+ sources)' },
+  strong_growth:        { pct: 0.15, label: 'Strong growth >25% YoY' },
+  premium_niche:        { pct: 0.10, label: 'Premium niche (fintech, B2B SaaS)' }
+};
+
+const COMPARABLES = [
+  { name: 'PushROI SaaS',      type: 'saas',  rev: '$14.5K/mo', price: '$485,000', mult: '42x', similar: 78 },
+  { name: 'AnalyticsTool.io',  type: 'saas',  rev: '$9K/mo',    price: '$295,000', mult: '33x', similar: 72 },
+  { name: 'Canvaemplates.com', type: 'content', rev: '$8.2K/mo', price: '$295,000', mult: '36x', similar: 68 },
+  { name: 'DataStack Pro',     type: 'saas',  rev: '$7K/mo',   price: '$210,000', mult: '30x', similar: 65 },
+  { name: 'PanelMetrics',      type: 'saas',  rev: '$11K/mo',  price: '$340,000', mult: '31x', similar: 70 },
+  { name: 'NicheDecorStore',   type: 'ecomm', rev: '$22K/mo',  price: '$616,000', mult: '28x', similar: 60 }
+];
+
+const DIMENSIONS = [
+  { key: 'clarity',    weight: 0.20, label: 'Clarity',           color: '#f59e0b' },
+  { key: 'usability',  weight: 0.20, label: 'Usability',          color: '#f59e0b' },
+  { key: 'trust',      weight: 0.15, label: 'Trust',              color: '#ef4444' },
+  { key: 'technical',  weight: 0.15, label: 'Technical Quality',  color: '#f59e0b' },
+  { key: 'conversion', weight: 0.15, label: 'Conversion',         color: '#ef4444' },
+  { key: 'opportunity',weight: 0.15, label: 'Opportunity',        color: '#a78bfa' }
+];
+
+const CONFIDENCE_BUFFERS = [
+  { min: 80, tier: 'high',     label: 'High',     buffer: 0.10 },
+  { min: 60, tier: 'good',    label: 'Good',      buffer: 0.20 },
+  { min: 40, tier: 'moderate',label: 'Moderate',  buffer: 0.35 },
+  { min:  0, tier: 'low',     label: 'Low',       buffer: 0.60 }
+];
+
+// ─── Valuation Engine ──────────────────────────────────────────────────────────
+
+async function runValuation(url) {
+  const domain = new URL(url).hostname.replace('www.', '');
+
+  // Simulate network + analysis delay
+  await new Promise(r => setTimeout(r, 2500));
+
+  const signals = extractSignals(domain);
+  const dims = buildDimensionScores(signals);
+  const valuation = calculateValuation(signals);
+  const confidence = calculateConfidence(signals);
+  const { strengths, risks } = assessStrengthsAndRisks(signals, dims);
+  const comps = filterComparables(signals.siteType);
+
+  return { url, domain, siteName: signals.siteName, dims, valuation, confidence, strengths, risks, comps };
+}
+
+function extractSignals(domain) {
+  const isPremiumNiche = /finance|saas|ai|health|crypto|b2b/i.test(domain);
+  const isYoung = Math.random() > 0.5;
+  const monthlyRev = Math.floor(Math.random() * 15000) + 500;
+  const margin = 0.4 + Math.random() * 0.4;
+  const growthRate = (Math.random() * 0.6) - 0.2;
+  const hasVerifiedRevenue = Math.random() > 0.6;
+  const trafficSources = Math.random() > 0.5 ? 3 : 1;
+  const hasContact = Math.random() > 0.4;
+  const hasPricing = Math.random() > 0.3;
+  const hasTestimonials = Math.random() > 0.5;
+
+  let siteType = 'content';
+  if (/shop|store|cart|ecom/i.test(domain)) siteType = 'ecommerce';
+  else if (/app|tool|platform|saas/i.test(domain)) siteType = 'saas';
+  else if (/agency|consult|services/i.test(domain)) siteType = 'agency';
+  else if (/marketplace|exchange/i.test(domain)) siteType = 'marketplace';
+
+  return {
+    siteType, monthlyRevenue: monthlyRev, netMargin: margin,
+    annualProfit: Math.floor(monthlyRev * margin * 12),
+    growthRate, isPremiumNiche, isYoung, hasVerifiedRevenue, trafficSources,
+    hasContact, hasPricing, hasTestimonials,
+    dataPointsFound: Math.floor(Math.random() * 4) + 6,
+    comparableCount: Math.floor(Math.random() * 4) + 2,
+    siteName: domain.split('.')[0].replace(/-/g, ' ').replace(/\d+/g, '').trim() || 'Website'
+  };
+}
+
+function buildDimensionScores(signals) {
+  const base = signals.hasPricing ? 60 : 40;
+  return DIMENSIONS.map(d => {
+    let score = Math.floor(base + (Math.random() * 30));
+    if (d.key === 'trust')     score = signals.hasTestimonials ? score : Math.floor(score * 0.6);
+    if (d.key === 'clarity')   score = signals.hasPricing ? score : Math.floor(score * 0.7);
+    if (d.key === 'opportunity') score = signals.growthRate > 0.2 ? Math.min(95, score + 15) : score;
+    if (d.key === 'technical') score = signals.isYoung ? Math.floor(score * 0.85) : score;
+    score = Math.max(10, Math.min(95, score));
+    return { ...d, score };
+  });
+}
+
+function calculateValuation(signals) {
+  const { siteType, annualProfit, growthRate, isPremiumNiche, isYoung,
+          hasVerifiedRevenue, trafficSources, monthlyRevenue } = signals;
+
+  let tier = monthlyRevenue > 25000 ? 'enterprise' : monthlyRevenue > 5000 ? 'high' : monthlyRevenue > 2500 ? 'med' : 'low';
+  let multiple = MULTIPLIERS[siteType][tier];
+
+  let growthFactor = 1.0;
+  for (const g of GROWTH_FACTORS) {
+    if (growthRate <= g.threshold) { growthFactor = g.factor; break; }
+  }
+
+  let riskDeductions = [];
+  if (!hasVerifiedRevenue) riskDeductions.push('unverified_financials');
+  if (trafficSources < 2)  riskDeductions.push('single_traffic');
+  if (isYoung)             riskDeductions.push('young_domain');
+  if (growthRate < -0.1)   riskDeductions.push('declining_qoq');
+
+  let riskSum = riskDeductions.reduce((s, k) => s + RISK_DEDUCTIONS[k].pct, 0);
+  let riskFactor = Math.max(0.3, 1.0 - riskSum);
+
+  let strengthSum = 0;
+  if (hasVerifiedRevenue) strengthSum += STRENGTH_BONUSES.verified_revenue.pct;
+  if (trafficSources >= 3) strengthSum += STRENGTH_BONUSES.diversified_traffic.pct;
+  if (growthRate > 0.25)    strengthSum += STRENGTH_BONUSES.strong_growth.pct;
+  if (isPremiumNiche)       strengthSum += STRENGTH_BONUSES.premium_niche.pct;
+  let strengthBonus = 1.0 + strengthSum;
+
+  const baseValue = Math.round(annualProfit * multiple * growthFactor * riskFactor * strengthBonus);
+
+  return { baseValue, multiple, growthFactor, riskFactor, riskDeductions, monthlyRevenue, annualProfit, tier, siteType };
+}
+
+function calculateConfidence(signals) {
+  const { dataPointsFound, hasVerifiedRevenue, trafficSources, comparableCount } = signals;
+  const dataQuality = Math.min(dataPointsFound / 10, 1.0);
+  const verificationLevel = hasVerifiedRevenue ? 1.0 : (trafficSources > 1 ? 0.5 : 0.2);
+  const marketComparables = Math.min(comparableCount / 5, 1.0);
+  const raw = (dataQuality * 0.35 + verificationLevel * 0.40 + marketComparables * 0.25) * 100;
+  const score = Math.round(Math.min(raw, 100));
+
+  let tier = CONFIDENCE_BUFFERS[0];
+  for (const c of CONFIDENCE_BUFFERS) { if (score >= c.min) { tier = c; break; } }
+
+  return {
+    score, tier: tier.tier, label: tier.label, buffer: tier.buffer,
+    dataQuality: Math.round(dataQuality * 10),
+    verification: verificationLevel === 1.0 ? 'Full' : verificationLevel > 0.4 ? 'Partial' : 'None',
+    comparables: comparableCount
+  };
+}
+
+function assessStrengthsAndRisks(signals, dims) {
+  const strengths = [], risks = [];
+  if (signals.hasVerifiedRevenue) strengths.push(STRENGTH_BONUSES.verified_revenue.label);
+  if (signals.trafficSources >= 3) strengths.push(STRENGTH_BONUSES.diversified_traffic.label);
+  if (signals.growthRate > 0.25)    strengths.push(STRENGTH_BONUSES.strong_growth.label);
+  if (signals.isPremiumNiche)       strengths.push(STRENGTH_BONUSES.premium_niche.label);
+  if ((dims.find(d => d.key === 'technical'))?.score > 70) strengths.push('Clean technical execution');
+  if (!signals.hasVerifiedRevenue) risks.push(RISK_DEDUCTIONS.unverified_financials.label);
+  if (signals.trafficSources < 2)  risks.push(RISK_DEDUCTIONS.single_traffic.label);
+  if (signals.isYoung)             risks.push(RISK_DEDUCTIONS.young_domain.label);
+  if (signals.growthRate < -0.1)   risks.push(RISK_DEDUCTIONS.declining_qoq.label);
+  if (!signals.hasTestimonials)    risks.push('No testimonials or social proof');
+  return { strengths, risks };
+}
+
+function filterComparables(siteType) {
+  return COMPARABLES.filter(c => c.type === siteType || c.type === 'saas').slice(0, 4);
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+
+function renderReport(data) {
+  const { url, domain, siteName, dims, valuation, confidence, strengths, risks, comps } = data;
+
+  document.getElementById('r-url').textContent = url;
+  document.getElementById('r-site-name').textContent = siteName;
+  document.getElementById('r-confidence-num').textContent = confidence.score;
+
+  const lowVal  = Math.round(valuation.baseValue * (1 - confidence.buffer));
+  const highVal = Math.round(valuation.baseValue * (1 + confidence.buffer));
+  document.getElementById('r-low').textContent = '$' + lowVal.toLocaleString();
+  document.getElementById('r-high').textContent = '$' + highVal.toLocaleString();
+  document.getElementById('r-mid').textContent  = '$' + valuation.baseValue.toLocaleString();
+
+  const badge = document.getElementById('r-badge');
+  badge.className = 'confidence-badge ' + confidence.tier;
+  document.getElementById('r-tier').textContent = confidence.label + ' Confidence';
+  document.getElementById('r-range').textContent = '±' + Math.round(confidence.buffer * 100) + '%';
+
+  document.getElementById('r-data-quality').textContent = confidence.dataQuality + '/10';
+  document.getElementById('r-verification').textContent = confidence.verification;
+  document.getElementById('r-comparables').textContent  = confidence.comparables + ' found';
+
+  document.getElementById('r-dims').innerHTML = dims.map(d => `
+    <div class="dim-item">
+      <div class="dim-header">
+        <span class="dim-name">${d.label}</span>
+        <span class="dim-score" style="color:${d.score > 60 ? '#22c55e' : d.score > 40 ? '#f59e0b' : '#ef4444'}">${d.score}</span>
+      </div>
+      <div class="dim-bar">
+        <div class="dim-bar-fill" style="width:${d.score}%;background-color:${d.color}"></div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('r-strengths').innerHTML = strengths.length
+    ? strengths.map(s => `<li><span class="str-icon">✓</span>${s}</li>`).join('')
+    : '<li style="color:var(--text-muted)">No strong signals detected</li>';
+  document.getElementById('r-risks').innerHTML = risks.length
+    ? risks.map(r => `<li><span class="ris-icon">!</span>${r}</li>`).join('')
+    : '<li style="color:var(--text-muted)">No major risk factors detected</li>';
+
+  document.getElementById('r-val-detail').innerHTML = `
+    <div class="val-detail-item"><div class="key">Site Type</div><div class="val" style="text-transform:capitalize">${valuation.siteType}</div></div>
+    <div class="val-detail-item"><div class="key">Est. Monthly Revenue</div><div class="val">$${valuation.monthlyRevenue.toLocaleString()}</div></div>
+    <div class="val-detail-item"><div class="key">Est. Annual Profit</div><div class="val">$${valuation.annualProfit.toLocaleString()}</div></div>
+    <div class="val-detail-item"><div class="key">Industry Multiple</div><div class="val">${valuation.multiple}x</div></div>
+    <div class="val-detail-item"><div class="key">Growth Factor</div><div class="val">${valuation.growthFactor.toFixed(2)}x</div></div>
+    <div class="val-detail-item"><div class="key">Risk Factor</div><div class="val">${(valuation.riskFactor).toFixed(2)}x</div></div>
+  `;
+
+  document.getElementById('r-comps').innerHTML = `
+    <thead><tr><th>Listing</th><th>Revenue</th><th>Sale Price</th><th>Multiple</th><th>Similarity</th></tr></thead>
+    <tbody>${comps.map(c => `
+      <tr><td class="name">${c.name}</td><td>${c.rev}</td><td class="price">${c.price}</td><td>${c.mult}</td><td><span class="similarity">${c.similar}%</span></td></tr>
+    `).join('')}</tbody>
+  `;
+
+  document.getElementById('r-seller-price').textContent = 'List at $' + highVal.toLocaleString();
+  document.getElementById('r-seller-note').textContent = 'Room to negotiate to midpoint. Address risk factors above to raise price.';
+  document.getElementById('r-buyer-price').textContent = 'Fair at $' + valuation.baseValue.toLocaleString();
+  document.getElementById('r-buyer-note').textContent = `Below $${lowVal.toLocaleString()} is potential bargain. Above $${highVal.toLocaleString()} is premium pricing.`;
+}
+
+// ─── Form ─────────────────────────────────────────────────────────────────────
+
+document.getElementById('urlForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('errorMsg').classList.remove('show');
+  document.getElementById('report').classList.remove('show');
+  document.getElementById('loading').classList.add('show');
+
+  try {
+    const data = await runValuation(url);
+    renderReport(data);
+    document.getElementById('report').classList.add('show');
+    document.getElementById('methodology').classList.remove('show');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err) {
+    document.getElementById('errorMsg').textContent = err.message || 'Something went wrong. Try again.';
+    document.getElementById('errorMsg').classList.add('show');
+  } finally {
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('loading').classList.remove('show');
+  }
+});
+
+function resetForm() {
+  document.getElementById('report').classList.remove('show');
+  document.getElementById('urlInput').value = '';
+  document.getElementById('urlInput').focus();
+}
+
+function toggleMethodology() {
+  const m = document.getElementById('methodology');
+  const btn = document.querySelector('.methodology-toggle button');
+  m.classList.toggle('show');
+  btn.textContent = m.classList.contains('show') ? 'Hide Methodology ↑' : 'Show Methodology ↓';
+  if (m.classList.contains('show')) m.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+
+</body>
+</html>
