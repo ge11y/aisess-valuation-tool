@@ -149,7 +149,7 @@
     .comp-table .similarity { display: inline-block; padding: 2px 8px; background: var(--accent); color: white; border-radius: 100px; font-size: 10px; font-weight: 600; }
 
     .val-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .val-detail-item { background: var(--bg); border: 1px solid solid; border-radius: 10px; padding: 14px; }
+    .val-detail-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
     .val-detail-item .key { font-size: 10px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
     .val-detail-item .val { font-size: 16px; font-weight: 700; color: var(--text); }
 
@@ -392,16 +392,37 @@ const CONFIDENCE_BUFFERS = [
   { min:  0, tier: 'low',     label: 'Low',       buffer: 0.60 }
 ];
 
+// ─── Deterministic PRNG seeded by domain ───────────────────────────────────────
+
+function makePRNG(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+function hashString(str) {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
 // ─── Valuation Engine ──────────────────────────────────────────────────────────
 
 async function runValuation(url) {
   const domain = new URL(url).hostname.replace('www.', '');
+  const seed = hashString(domain);
+  const rng = makePRNG(seed);
 
   // Simulate network + analysis delay
   await new Promise(r => setTimeout(r, 2500));
 
-  const signals = extractSignals(domain);
-  const dims = buildDimensionScores(signals);
+  const signals = extractSignals(domain, rng);
+  const dims = buildDimensionScores(signals, rng);
   const valuation = calculateValuation(signals);
   const confidence = calculateConfidence(signals);
   const { strengths, risks } = assessStrengthsAndRisks(signals, dims);
@@ -410,17 +431,21 @@ async function runValuation(url) {
   return { url, domain, siteName: signals.siteName, dims, valuation, confidence, strengths, risks, comps };
 }
 
-function extractSignals(domain) {
+function rngRange(rng, min, max) {
+  return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+function extractSignals(domain, rng) {
   const isPremiumNiche = /finance|saas|ai|health|crypto|b2b/i.test(domain);
-  const isYoung = Math.random() > 0.5;
-  const monthlyRev = Math.floor(Math.random() * 15000) + 500;
-  const margin = 0.4 + Math.random() * 0.4;
-  const growthRate = (Math.random() * 0.6) - 0.2;
-  const hasVerifiedRevenue = Math.random() > 0.6;
-  const trafficSources = Math.random() > 0.5 ? 3 : 1;
-  const hasContact = Math.random() > 0.4;
-  const hasPricing = Math.random() > 0.3;
-  const hasTestimonials = Math.random() > 0.5;
+  const isYoung = rng() > 0.5;
+  const monthlyRev = rngRange(rng, 500, 15500);
+  const margin = 0.4 + rng() * 0.4;
+  const growthRate = (rng() * 0.6) - 0.2;
+  const hasVerifiedRevenue = rng() > 0.6;
+  const trafficSources = rng() > 0.5 ? 3 : 1;
+  const hasContact = rng() > 0.4;
+  const hasPricing = rng() > 0.3;
+  const hasTestimonials = rng() > 0.5;
 
   let siteType = 'content';
   if (/shop|store|cart|ecom/i.test(domain)) siteType = 'ecommerce';
@@ -433,20 +458,20 @@ function extractSignals(domain) {
     annualProfit: Math.floor(monthlyRev * margin * 12),
     growthRate, isPremiumNiche, isYoung, hasVerifiedRevenue, trafficSources,
     hasContact, hasPricing, hasTestimonials,
-    dataPointsFound: Math.floor(Math.random() * 4) + 6,
-    comparableCount: Math.floor(Math.random() * 4) + 2,
+    dataPointsFound: rngRange(rng, 6, 10),
+    comparableCount: rngRange(rng, 2, 6),
     siteName: domain.split('.')[0].replace(/-/g, ' ').replace(/\d+/g, '').trim() || 'Website'
   };
 }
 
-function buildDimensionScores(signals) {
+function buildDimensionScores(signals, rng) {
   const base = signals.hasPricing ? 60 : 40;
   return DIMENSIONS.map(d => {
-    let score = Math.floor(base + (Math.random() * 30));
-    if (d.key === 'trust')     score = signals.hasTestimonials ? score : Math.floor(score * 0.6);
-    if (d.key === 'clarity')   score = signals.hasPricing ? score : Math.floor(score * 0.7);
+    let score = Math.floor(base + (rng() * 30));
+    if (d.key === 'trust')      score = signals.hasTestimonials ? score : Math.floor(score * 0.6);
+    if (d.key === 'clarity')    score = signals.hasPricing ? score : Math.floor(score * 0.7);
     if (d.key === 'opportunity') score = signals.growthRate > 0.2 ? Math.min(95, score + 15) : score;
-    if (d.key === 'technical') score = signals.isYoung ? Math.floor(score * 0.85) : score;
+    if (d.key === 'technical')  score = signals.isYoung ? Math.floor(score * 0.85) : score;
     score = Math.max(10, Math.min(95, score));
     return { ...d, score };
   });
